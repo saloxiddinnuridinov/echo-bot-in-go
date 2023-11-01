@@ -2,9 +2,9 @@ package main
 
 import (
 	"bytes"
-	"database/sql"
 	"encoding/json"
 	"fmt"
+	"github.com/jinzhu/gorm"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -12,6 +12,8 @@ import (
 
 	_ "github.com/jinzhu/gorm/dialects/mysql"
 )
+
+var db *gorm.DB
 
 const (
 	DBUsername = "root"
@@ -21,11 +23,15 @@ const (
 
 func main() {
 	// Initialize the database connection
-	db, err := sql.Open("mysql", fmt.Sprintf("%s:%s@tcp(127.0.0.1:3306)/%s", DBUsername, DBPassword, DBName))
+	var err error
+	db, err = gorm.Open("mysql", fmt.Sprintf("%s:%s@tcp(127.0.0.1:3306)/%s?charset=utf8&parseTime=True&loc=Local", DBUsername, DBPassword, DBName))
 	if err != nil {
 		log.Fatal("Database connection error:", err)
 	}
 	defer db.Close()
+
+	// Migrate the User model to the database
+	db.AutoMigrate(&User{})
 
 	botToken := "6166118537:AAFrnPz7lOcqqMPiIQA2h1fLmPGL6L0qR0c"
 	botApi := "https://api.telegram.org/bot"
@@ -39,17 +45,37 @@ func main() {
 		}
 
 		for _, update := range updates {
-			// Save the message to the database
-			if update.Message.Text != "" {
-				err := saveMessageToDB(db, update.Message.Chat.ChatId, update.Message.Text)
-				if err != nil {
-					log.Println("Error saving message to the database:", err)
-				}
-			}
+			if update.Message.Text == "/start" {
 
-			err := respond(botUrl, update)
-			if err != nil {
-				log.Println("Error sending response:", err)
+				fmt.Println(update.Message.ChatID)
+
+				// Check if the user is already in the database
+				user := checkUser(db, update.Message.Chat.ChatId)
+				if user == nil {
+					// User is not in the database, save their data
+					err := saveUserToDB(db, update.Message.Chat)
+					if err != nil {
+						log.Println("Error saving user to the database:", err)
+					}
+				}
+
+				// Handle the /start command
+				err := handleStartCommand(botUrl, update)
+				if err != nil {
+					log.Println("Error handling the /start command:", err)
+				}
+			} else {
+				// Handle other messages
+				user := saveMessageToDB(db, update.Message.Chat.ChatId, update.Message.Text)
+				if user == nil {
+					if err != nil {
+						log.Println("Error saving user to the database:", err)
+					}
+				}
+				err := respond(botUrl, update)
+				if err != nil {
+					log.Println("Error sending response:", err)
+				}
 			}
 
 			offset = update.UpdateId + 1
@@ -57,6 +83,27 @@ func main() {
 	}
 }
 
+func handleStartCommand(url string, update Update) interface{} {
+	return nil
+}
+func checkUser(db *gorm.DB, chatID int) *User {
+	var user User
+	db.Where("chat_id = ?", chatID).First(&user)
+	if user.ID == 0 {
+		return nil // User not found
+	}
+	return &user
+}
+
+func saveUserToDB(db *gorm.DB, chat Chat) error {
+	user := User{
+		ChatId:    chat.ChatId,
+		Username:  chat.Username,
+		FirstName: chat.FirstName,
+		LastName:  chat.LastName,
+	}
+	return db.Create(&user).Error
+}
 func getUpdates(botUrl string, offset int) ([]Update, error) {
 	resp, err := http.Get(botUrl + "/getUpdates?offset=" + strconv.Itoa(offset))
 	if err != nil {
@@ -93,15 +140,17 @@ func respond(botUrl string, update Update) error {
 	return nil
 }
 
-func saveMessageToDB(db *sql.DB, chatID int, messageText string) error {
-	// Prepare the SQL statement to insert the message into the database
-	stmt, err := db.Prepare("INSERT INTO messages (chat_id, text) VALUES (?, ?)")
-	if err != nil {
+func saveMessageToDB(db *gorm.DB, chatID int, messageText string) error {
+	// Yangi xabar ob'ekti yaratish
+	message := Message{
+		ChatID: chatID,
+		Text:   messageText,
+	}
+
+	// Ma'lumotlar bazasiga saqlash
+	if err := db.Create(&message).Error; err != nil {
 		return err
 	}
-	defer stmt.Close()
 
-	// Execute the SQL statement with the chat ID and message text
-	_, err = stmt.Exec(chatID, messageText)
-	return err
+	return nil
 }
