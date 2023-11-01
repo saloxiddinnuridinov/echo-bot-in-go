@@ -15,7 +15,10 @@ type Message struct {
 }
 
 type Chat struct {
-	ChatId int `json:"id"`
+	ChatId    int `json:"id"`
+	Username  string
+	FirstName string
+	LastName  string
 }
 
 type BotMessage struct {
@@ -25,4 +28,15 @@ type BotMessage struct {
 
 type RestResponse struct {
 	Result []Update `json:"result"`
+}
+
+type User struct {
+	gorm.Model
+	TelegramUserID int
+	Username       string
+	FirstName      string
+	LastName       string
+	ChatId         int
+
+	// Add more fields as needed
 }
