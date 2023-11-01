@@ -9,16 +9,23 @@ type Update struct {
 
 type Message struct {
 	gorm.Model
-	Chat   Chat   `json:"chat"`
-	Text   string `json:"text"`
-	ChatID int
+	From From   `json:"from"`
+	Chat Chat   `json:"chat"`
+	Text string `json:"text"`
+}
+
+type From struct {
+	Id        int    `json:"id"`
+	FirstName string `json:"first_name"`
+	LastName  string `json:"last_name"`
+	Username  string `json:"username"`
 }
 
 type Chat struct {
-	ChatId    int `json:"id"`
-	Username  string
-	FirstName string
-	LastName  string
+	ChatId    int    `json:"id"`
+	FirstName string `json:"first_name"`
+	LastName  string `json:"last_name"`
+	Username  string `json:"username"`
 }
 
 type BotMessage struct {
@@ -32,11 +39,11 @@ type RestResponse struct {
 
 type User struct {
 	gorm.Model
-	TelegramUserID int
-	Username       string
-	FirstName      string
-	LastName       string
-	ChatId         int
+	Phone     int
+	Username  string
+	FirstName string
+	LastName  string
+	ChatId    int
 
 	// Add more fields as needed
 }
