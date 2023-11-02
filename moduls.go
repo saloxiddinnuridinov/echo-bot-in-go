@@ -1,17 +1,30 @@
 package main
 
-import "github.com/jinzhu/gorm"
+import (
+	"github.com/jinzhu/gorm"
+	"sync"
+)
 
 type Update struct {
 	UpdateId int     `json:"update_id"`
 	Message  Message `json:"message"`
 }
+type Question struct {
+	gorm.Model
+	Title    string
+	Position int
+}
 
 type Message struct {
 	gorm.Model
-	From From   `json:"from"`
-	Chat Chat   `json:"chat"`
-	Text string `json:"text"`
+	From       From   `json:"from"`
+	Chat       Chat   `json:"chat"`
+	Text       string `json:"text"`
+	QuestionId int
+	ChatId     int
+
+	Question Question `gorm:"foreignKey:QuestionId"`
+	User     User     `gorm:"foreignKey:ChatId"`
 }
 
 type From struct {
@@ -44,6 +57,9 @@ type User struct {
 	FirstName string
 	LastName  string
 	ChatId    int
+}
 
-	// Add more fields as needed
+type Cache struct {
+	mu    sync.Mutex
+	cache map[string]int
 }
